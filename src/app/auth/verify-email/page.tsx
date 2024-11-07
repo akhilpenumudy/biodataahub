@@ -20,8 +20,8 @@ export default function VerifyEmailPage() {
         <CardContent>
           <div className="space-y-4">
             <p className="text-center text-muted-foreground">
-              We've sent you an email with a confirmation link. Please check your
-              inbox and click the link to verify your account.
+              We've sent you an email with a confirmation link. Please check
+              your inbox and click the link to verify your account.
             </p>
             <div className="flex flex-col space-y-2">
               <Button variant="outline" asChild>
@@ -30,7 +30,10 @@ export default function VerifyEmailPage() {
             </div>
             <p className="text-sm text-center text-muted-foreground">
               Didn't receive an email?{" "}
-              <Link href="/auth/signup" className="text-primary hover:underline">
+              <Link
+                href="/auth/signup"
+                className="text-primary hover:underline"
+              >
                 Try signing up again
               </Link>
             </p>
@@ -39,4 +42,4 @@ export default function VerifyEmailPage() {
       </Card>
     </div>
   );
-} 
+}

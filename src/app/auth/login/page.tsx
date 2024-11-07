@@ -32,17 +32,13 @@ export default function LoginPage() {
       });
 
       if (error) {
-        if (error.message.includes('Email not confirmed')) {
-          setError('Please verify your email before logging in. Check your inbox for the verification link.');
-        } else {
-          setError(error.message);
-        }
+        setError(error.message);
         return;
       }
 
-      if (data.user) {
+      if (data.session) {
+        // Simpler redirect
         router.push("/dashboard");
-        router.refresh();
       }
     } catch (error) {
       setError(error instanceof Error ? error.message : "An error occurred");
@@ -55,7 +51,9 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <Card className="w-[400px]">
         <CardHeader>
-          <h1 className="text-2xl font-bold text-center">Welcome to BioBridge</h1>
+          <h1 className="text-2xl font-bold text-center">
+            Welcome to BioBridge
+          </h1>
           <p className="text-center text-muted-foreground">
             Sign in to your account
           </p>
@@ -64,23 +62,33 @@ export default function LoginPage() {
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
               <Input
+                id="email"
+                name="email"
                 type="email"
                 placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
                 required
               />
             </div>
             <div className="space-y-2">
               <Input
+                id="password"
+                name="password"
                 type="password"
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
                 required
               />
             </div>
-            {error && <p className="text-red-500 text-sm">{error}</p>}
+            {error && (
+              <div className="bg-red-50 p-2 rounded text-red-500 text-sm">
+                {error}
+              </div>
+            )}
             <Button className="w-full" type="submit" disabled={loading}>
               {loading ? "Signing in..." : "Sign in"}
             </Button>
@@ -97,4 +105,4 @@ export default function LoginPage() {
       </Card>
     </div>
   );
-} 
+}

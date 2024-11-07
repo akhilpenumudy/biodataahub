@@ -1,3 +1,5 @@
+import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,56 +16,76 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
-import { BarChart, FileText, Upload } from "lucide-react";
+import {
+  BarChart,
+  FileText,
+  Upload,
+  Download,
+  Calendar,
+  Clock,
+} from "lucide-react";
+import { redirect } from "next/navigation";
 
-// This would typically come from your backend
-const userDatasets = [
-  {
-    id: 1,
-    title: "Genome Sequence Data",
-    type: "DNA",
-    size: "2.3 GB",
-    downloads: 156,
-  },
-  {
-    id: 2,
-    title: "Cancer Cell Mutations",
-    type: "Cellular",
-    size: "500 MB",
-    downloads: 89,
-  },
-  {
-    id: 3,
-    title: "Brain Activity Patterns",
-    type: "Neuroscience",
-    size: "1.1 GB",
-    downloads: 203,
-  },
-];
+async function getUserDatasets() {
+  try {
+    const cookieStore = cookies();
+    const supabase = createServerComponentClient({
+      cookies: () => cookieStore,
+    });
 
-export default function MyDataPage() {
+    // First, try to get all datasets without filtering
+    const { data: datasets, error: datasetsError } = await supabase
+      .from("datasets")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (datasetsError) {
+      console.error("Error fetching datasets:", datasetsError);
+      return { datasets: [], error: datasetsError.message };
+    }
+
+    console.log("Fetched datasets:", datasets); // Debug log
+    return { datasets: datasets || [], error: null };
+  } catch (error) {
+    console.error("Error in getUserDatasets:", error);
+    return { datasets: [], error: "Failed to fetch datasets" };
+  }
+}
+
+function formatDate(dateString: string) {
+  return new Date(dateString).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function formatFileSize(bytes: number) {
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+  if (bytes === 0) return "0 Byte";
+  const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)).toString());
+  return Math.round((bytes / Math.pow(1024, i)) * 100) / 100 + " " + sizes[i];
+}
+
+export default async function DashboardPage() {
+  const cookieStore = cookies();
+  const supabase = createServerComponentClient({
+    cookies: () => cookieStore,
+  });
+
+  const { data: datasets } = await supabase
+    .from("datasets")
+    .select("*")
+    .order("created_at", { ascending: false });
+
   return (
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-6">
           <SidebarTrigger />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbPage>My Data</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
+          <h1 className="text-lg font-semibold">My Data</h1>
         </header>
         <main className="flex-1 overflow-auto p-6">
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -75,7 +97,7 @@ export default function MyDataPage() {
                 <FileText className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{userDatasets.length}</div>
+                <div className="text-2xl font-bold">{datasets.length}</div>
               </CardContent>
             </Card>
             <Card>
@@ -87,8 +109,8 @@ export default function MyDataPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {userDatasets.reduce(
-                    (sum, dataset) => sum + dataset.downloads,
+                  {datasets.reduce(
+                    (sum, dataset) => sum + (dataset.downloads || 0),
                     0
                   )}
                 </div>
@@ -110,25 +132,72 @@ export default function MyDataPage() {
           </div>
           <Separator className="my-6" />
           <h2 className="text-xl font-semibold mb-4">Your Datasets</h2>
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {userDatasets.map((dataset) => (
-              <Card key={dataset.id}>
-                <CardHeader>
-                  <CardTitle>{dataset.title}</CardTitle>
-                  <CardDescription>{dataset.type}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p>Size: {dataset.size}</p>
-                  <p>Downloads: {dataset.downloads}</p>
-                </CardContent>
-                <CardFooter>
-                  <Button variant="outline" className="w-full">
-                    View Details
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
+          {datasets.length === 0 ? (
+            <div className="col-span-full text-center text-muted-foreground py-8">
+              No datasets found. Click "Upload Dataset" to add your first
+              dataset.
+            </div>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {datasets.map((dataset) => (
+                <Card key={dataset.id} className="flex flex-col">
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="text-lg">
+                          {dataset.title}
+                        </CardTitle>
+                        <CardDescription className="mt-1">
+                          {dataset.access_type === "paid" ? (
+                            <span className="text-green-600 font-medium">
+                              ${dataset.price}
+                            </span>
+                          ) : (
+                            <span className="text-blue-600 font-medium">
+                              Free
+                            </span>
+                          )}
+                        </CardDescription>
+                      </div>
+                      <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                        <Download className="h-4 w-4" />
+                        <span>{dataset.downloads || 0}</span>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex-1">
+                    <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
+                      {dataset.description}
+                    </p>
+                    <div className="space-y-2 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4" />
+                        <span>Uploaded {formatDate(dataset.created_at)}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        <span>{formatFileSize(dataset.file_size)}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                  <CardFooter className="flex gap-2">
+                    <Button variant="outline" className="flex-1" asChild>
+                      <a
+                        href={dataset.file_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Download
+                      </a>
+                    </Button>
+                    <Button variant="outline" className="flex-1">
+                      View Details
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          )}
         </main>
       </SidebarInset>
     </SidebarProvider>

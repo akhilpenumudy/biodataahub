@@ -38,7 +38,7 @@ export default function SignUpPage() {
       });
 
       if (error) throw error;
-      
+
       router.push("/auth/verify-email");
     } catch (error) {
       setError(error instanceof Error ? error.message : "An error occurred");
@@ -60,33 +60,42 @@ export default function SignUpPage() {
           <form onSubmit={handleSignUp} className="space-y-4">
             <div className="space-y-2">
               <Input
+                id="displayName"
+                name="displayName"
                 type="text"
                 placeholder="Display Name"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
+                autoComplete="name"
                 required
               />
             </div>
             <div className="space-y-2">
               <Input
+                id="email"
+                name="email"
                 type="email"
                 placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
                 required
               />
             </div>
             <div className="space-y-2">
               <Input
+                id="password"
+                name="password"
                 type="password"
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                autoComplete="new-password"
                 required
               />
             </div>
             {error && <p className="text-red-500 text-sm">{error}</p>}
-            <Button className="w-full" type="submit" disabled={loading}>
+            <Button id="submit" name="submit" className="w-full" type="submit" disabled={loading}>
               {loading ? "Creating account..." : "Create account"}
             </Button>
           </form>
@@ -102,4 +111,4 @@ export default function SignUpPage() {
       </Card>
     </div>
   );
-} 
+}

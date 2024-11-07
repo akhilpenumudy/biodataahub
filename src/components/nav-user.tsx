@@ -1,20 +1,11 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import {
-  BadgeCheck,
-  Bell,
-  ChevronsUpDown,
-  LogOut,
-} from "lucide-react"
-import { useRouter } from "next/navigation"
-import { supabase } from "@/lib/supabase"
+import { useEffect, useState } from "react";
+import { BadgeCheck, Bell, ChevronsUpDown, LogOut } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,57 +14,60 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
 
 export function NavUser() {
-  const { isMobile } = useSidebar()
-  const router = useRouter()
+  const { isMobile } = useSidebar();
+  const router = useRouter();
   const [userData, setUserData] = useState<{
     email: string | undefined;
     displayName: string | undefined;
   }>({
     email: "",
     displayName: "",
-  })
+  });
 
   useEffect(() => {
     async function getUserData() {
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (user) {
         setUserData({
           email: user.email,
-          displayName: user.user_metadata.display_name || user.email?.split('@')[0],
-        })
+          displayName:
+            user.user_metadata.display_name || user.email?.split("@")[0],
+        });
       }
     }
-    getUserData()
-  }, [])
+    getUserData();
+  }, []);
 
   const handleSignOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut()
-      if (error) throw error
-      router.push('/auth/login')
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      router.push("/auth/login");
     } catch (error) {
-      console.error('Error signing out:', error)
+      console.error("Error signing out:", error);
     }
-  }
+  };
 
   // Get initials from display name
   const getInitials = (name: string) => {
     return name
-      .split(' ')
-      .map(word => word[0])
-      .join('')
+      .split(" ")
+      .map((word) => word[0])
+      .join("")
       .toUpperCase()
-      .substring(0, 2)
-  }
+      .substring(0, 2);
+  };
 
   return (
     <SidebarMenu>
@@ -86,11 +80,15 @@ export function NavUser() {
             >
               <Avatar className="h-8 w-8 rounded-lg">
                 <AvatarFallback className="rounded-lg">
-                  {userData.displayName ? getInitials(userData.displayName) : '??'}
+                  {userData.displayName
+                    ? getInitials(userData.displayName)
+                    : "??"}
                 </AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">{userData.displayName}</span>
+                <span className="truncate font-semibold">
+                  {userData.displayName}
+                </span>
                 <span className="truncate text-xs">{userData.email}</span>
               </div>
               <ChevronsUpDown className="ml-auto size-4" />
@@ -106,11 +104,15 @@ export function NavUser() {
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
                   <AvatarFallback className="rounded-lg">
-                    {userData.displayName ? getInitials(userData.displayName) : '??'}
+                    {userData.displayName
+                      ? getInitials(userData.displayName)
+                      : "??"}
                   </AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">{userData.displayName}</span>
+                  <span className="truncate font-semibold">
+                    {userData.displayName}
+                  </span>
                   <span className="truncate text-xs">{userData.email}</span>
                 </div>
               </div>
@@ -135,5 +137,5 @@ export function NavUser() {
         </DropdownMenu>
       </SidebarMenuItem>
     </SidebarMenu>
-  )
+  );
 }
