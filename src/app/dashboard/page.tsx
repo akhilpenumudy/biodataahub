@@ -1,5 +1,6 @@
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
+"use client";
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +19,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { BarChart, FileText, Upload, Download, Calendar } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 interface Dataset {
   id: string;
@@ -30,33 +32,63 @@ interface Dataset {
   price: number;
   downloads: number;
   curation_notes: string;
+  user_id: string;
 }
 
-function formatDate(dateString: string) {
-  return new Date(dateString).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
+export default function DashboardPage() {
+  const [datasets, setDatasets] = useState<Dataset[]>([]);
+  const [loading, setLoading] = useState(true);
 
-function formatFileSize(bytes: number) {
-  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
-  if (bytes === 0) return "0 Byte";
-  const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)).toString());
-  return Math.round((bytes / Math.pow(1024, i)) * 100) / 100 + " " + sizes[i];
-}
+  useEffect(() => {
+    async function fetchDatasets() {
+      try {
+        // First get the current user
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
 
-export default async function DashboardPage() {
-  const cookieStore = cookies();
-  const supabase = createServerComponentClient({ cookies: () => cookieStore });
+        if (!user) {
+          console.error("No user found");
+          return;
+        }
 
-  const { data: datasets = [] } = await supabase
-    .from("datasets")
-    .select("*")
-    .order("created_at", { ascending: false });
+        // Then fetch only this user's datasets
+        const { data, error } = await supabase
+          .from("datasets")
+          .select("*")
+          .eq("user_id", user.id) // Only get datasets where user_id matches current user
+          .order("created_at", { ascending: false });
 
-  const safeDatasets = datasets as Dataset[];
+        if (error) throw error;
+        setDatasets(data || []);
+      } catch (error) {
+        console.error("Error fetching datasets:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchDatasets();
+  }, []);
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  const formatFileSize = (bytes: number) => {
+    const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+    if (bytes === 0) return "0 Byte";
+    const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)).toString());
+    return Math.round((bytes / Math.pow(1024, i)) * 100) / 100 + " " + sizes[i];
+  };
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <SidebarProvider>
@@ -76,7 +108,7 @@ export default async function DashboardPage() {
                 <FileText className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{safeDatasets.length}</div>
+                <div className="text-2xl font-bold">{datasets.length}</div>
               </CardContent>
             </Card>
             <Card>
@@ -88,7 +120,7 @@ export default async function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {safeDatasets.reduce(
+                  {datasets.reduce(
                     (sum, dataset) => sum + (dataset.downloads || 0),
                     0
                   )}
@@ -111,14 +143,14 @@ export default async function DashboardPage() {
           </div>
           <Separator className="my-6" />
           <h2 className="text-xl font-semibold mb-4">Your Datasets</h2>
-          {safeDatasets.length === 0 ? (
+          {datasets.length === 0 ? (
             <div className="col-span-full text-center text-muted-foreground py-8">
               No datasets found. Click "Upload Dataset" to add your first
               dataset.
             </div>
           ) : (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {safeDatasets.map((dataset) => (
+              {datasets.map((dataset) => (
                 <Card key={dataset.id} className="flex flex-col">
                   <CardHeader>
                     <div className="flex justify-between items-start">
