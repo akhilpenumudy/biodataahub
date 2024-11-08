@@ -17,6 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TiptapEditor } from "@/components/tiptap-editor";
 
 export default function DatasetUploadForm() {
   const [accessType, setAccessType] = useState("opensource");
@@ -25,23 +26,24 @@ export default function DatasetUploadForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const [description, setDescription] = useState("");
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       setFile(selectedFile);
-      
+
       // Read and preview the file
       const reader = new FileReader();
       reader.onload = (event) => {
         try {
           const text = event.target?.result as string;
-          const lines = text.split('\n').slice(0, 6); // Get first 6 lines
-          const rows = lines.map(line => line.split(','));
+          const lines = text.split("\n").slice(0, 6); // Get first 6 lines
+          const rows = lines.map((line) => line.split(","));
           setPreview(rows);
         } catch (error) {
-          console.error('Error parsing file:', error);
-          setError('Error reading file. Please make sure it\'s a valid CSV.');
+          console.error("Error parsing file:", error);
+          setError("Error reading file. Please make sure it's a valid CSV.");
         }
       };
       reader.readAsText(selectedFile);
@@ -54,15 +56,14 @@ export default function DatasetUploadForm() {
     setError(null);
 
     try {
-      // Get form element
       const form = e.currentTarget;
-      
-      // Get form values
-      const title = (form.querySelector('#title') as HTMLInputElement)?.value;
-      const description = (form.querySelector('#description') as HTMLTextAreaElement)?.value;
-      const curation = (form.querySelector('#curation') as HTMLTextAreaElement)?.value;
-      const price = accessType === "paid" ? 
-        Number((form.querySelector('#price') as HTMLInputElement)?.value) : 0;
+      const title = (form.querySelector("#title") as HTMLInputElement)?.value;
+      const curation = (form.querySelector("#curation") as HTMLTextAreaElement)
+        ?.value;
+      const price =
+        accessType === "paid"
+          ? Number((form.querySelector("#price") as HTMLInputElement)?.value)
+          : 0;
 
       // Get current user
       const {
@@ -78,7 +79,7 @@ export default function DatasetUploadForm() {
       const fileName = `${uuidv4()}.${file.name.split(".").pop()}`;
       const filePath = `${user.id}/${fileName}`;
 
-      // 1. Upload file to Supabase Storage
+      // Upload file to Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from("datasets")
         .upload(filePath, file);
@@ -90,10 +91,10 @@ export default function DatasetUploadForm() {
         data: { publicUrl },
       } = supabase.storage.from("datasets").getPublicUrl(filePath);
 
-      // 2. Create dataset record
+      // Create dataset record with HTML description
       const { error: dbError } = await supabase.from("datasets").insert({
         title,
-        description,
+        description: description, // Use the state value directly
         curation_notes: curation,
         file_path: filePath,
         file_size: file.size,
@@ -164,7 +165,11 @@ export default function DatasetUploadForm() {
 
         <div>
           <Label htmlFor="description">Description</Label>
-          <Textarea id="description" name="description" required />
+          <TiptapEditor
+            value={description}
+            onChange={setDescription}
+            placeholder="Describe your dataset..."
+          />
         </div>
 
         <div>

@@ -18,7 +18,15 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
-import { BarChart, FileText, Upload, Download, Calendar } from "lucide-react";
+import {
+  BarChart,
+  FileText,
+  Upload,
+  Download,
+  Calendar,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 interface Dataset {
@@ -38,6 +46,7 @@ interface Dataset {
 export default function DashboardPage() {
   const [datasets, setDatasets] = useState<Dataset[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchDatasets() {
@@ -84,6 +93,10 @@ export default function DashboardPage() {
     if (bytes === 0) return "0 Byte";
     const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)).toString());
     return Math.round((bytes / Math.pow(1024, i)) * 100) / 100 + " " + sizes[i];
+  };
+
+  const toggleExpand = (id: string) => {
+    setExpandedId(expandedId === id ? null : id);
   };
 
   if (loading) {
@@ -151,7 +164,14 @@ export default function DashboardPage() {
           ) : (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {datasets.map((dataset) => (
-                <Card key={dataset.id} className="flex flex-col">
+                <Card
+                  key={dataset.id}
+                  className={`flex flex-col transition-all duration-200 ease-in-out ${
+                    expandedId === dataset.id
+                      ? "md:col-span-2 lg:col-span-3"
+                      : ""
+                  }`}
+                >
                   <CardHeader>
                     <div className="flex justify-between items-start">
                       <div>
@@ -177,9 +197,15 @@ export default function DashboardPage() {
                     </div>
                   </CardHeader>
                   <CardContent className="flex-1">
-                    <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
-                      {dataset.description}
-                    </p>
+                    <div
+                      className={`prose prose-sm max-w-none ${
+                        expandedId === dataset.id ? "" : "line-clamp-2"
+                      } mb-4`}
+                      dangerouslySetInnerHTML={{
+                        __html:
+                          dataset.description || "No description provided",
+                      }}
+                    />
                     <div className="space-y-2 text-sm text-muted-foreground">
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4" />
@@ -190,6 +216,34 @@ export default function DashboardPage() {
                         <span>{formatFileSize(dataset.file_size)}</span>
                       </div>
                     </div>
+                    {expandedId === dataset.id && (
+                      <div className="mt-4 space-y-4 border-t pt-4">
+                        <div>
+                          <h3 className="font-semibold mb-2">Curation Notes</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {dataset.curation_notes}
+                          </p>
+                        </div>
+                        <div>
+                          <h3 className="font-semibold mb-2">Access Type</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {dataset.access_type === "paid"
+                              ? `Paid - $${dataset.price}`
+                              : "Free Open Source"}
+                          </p>
+                        </div>
+                        <div>
+                          <h3 className="font-semibold mb-2">
+                            File Information
+                          </h3>
+                          <div className="text-sm text-muted-foreground space-y-1">
+                            <p>Size: {formatFileSize(dataset.file_size)}</p>
+                            <p>Upload Date: {formatDate(dataset.created_at)}</p>
+                            <p>Downloads: {dataset.downloads || 0}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                   <CardFooter className="flex gap-2">
                     <Button variant="outline" className="flex-1" asChild>
@@ -201,8 +255,22 @@ export default function DashboardPage() {
                         Download
                       </a>
                     </Button>
-                    <Button variant="outline" className="flex-1">
-                      View Details
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => toggleExpand(dataset.id)}
+                    >
+                      {expandedId === dataset.id ? (
+                        <>
+                          <ChevronUp className="mr-2 h-4 w-4" />
+                          Show Less
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown className="mr-2 h-4 w-4" />
+                          View Details
+                        </>
+                      )}
                     </Button>
                   </CardFooter>
                 </Card>
