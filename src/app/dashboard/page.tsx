@@ -17,40 +17,19 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
-import {
-  BarChart,
-  FileText,
-  Upload,
-  Download,
-  Calendar,
-  Clock,
-} from "lucide-react";
-import { redirect } from "next/navigation";
+import { BarChart, FileText, Upload, Download, Calendar } from "lucide-react";
 
-async function getUserDatasets() {
-  try {
-    const cookieStore = cookies();
-    const supabase = createServerComponentClient({
-      cookies: () => cookieStore,
-    });
-
-    // First, try to get all datasets without filtering
-    const { data: datasets, error: datasetsError } = await supabase
-      .from("datasets")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (datasetsError) {
-      console.error("Error fetching datasets:", datasetsError);
-      return { datasets: [], error: datasetsError.message };
-    }
-
-    console.log("Fetched datasets:", datasets); // Debug log
-    return { datasets: datasets || [], error: null };
-  } catch (error) {
-    console.error("Error in getUserDatasets:", error);
-    return { datasets: [], error: "Failed to fetch datasets" };
-  }
+interface Dataset {
+  id: string;
+  title: string;
+  description: string;
+  file_url: string;
+  created_at: string;
+  file_size: number;
+  access_type: string;
+  price: number;
+  downloads: number;
+  curation_notes: string;
 }
 
 function formatDate(dateString: string) {
@@ -70,14 +49,14 @@ function formatFileSize(bytes: number) {
 
 export default async function DashboardPage() {
   const cookieStore = cookies();
-  const supabase = createServerComponentClient({
-    cookies: () => cookieStore,
-  });
+  const supabase = createServerComponentClient({ cookies: () => cookieStore });
 
-  const { data: datasets } = await supabase
+  const { data: datasets = [] } = await supabase
     .from("datasets")
     .select("*")
     .order("created_at", { ascending: false });
+
+  const safeDatasets = datasets as Dataset[];
 
   return (
     <SidebarProvider>
@@ -85,7 +64,7 @@ export default async function DashboardPage() {
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-6">
           <SidebarTrigger />
-          <h1 className="text-lg font-semibold">My Data</h1>
+          <h1 className="text-sm ">My Data</h1>
         </header>
         <main className="flex-1 overflow-auto p-6">
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -97,7 +76,7 @@ export default async function DashboardPage() {
                 <FileText className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{datasets.length}</div>
+                <div className="text-2xl font-bold">{safeDatasets.length}</div>
               </CardContent>
             </Card>
             <Card>
@@ -109,7 +88,7 @@ export default async function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {datasets.reduce(
+                  {safeDatasets.reduce(
                     (sum, dataset) => sum + (dataset.downloads || 0),
                     0
                   )}
@@ -132,14 +111,14 @@ export default async function DashboardPage() {
           </div>
           <Separator className="my-6" />
           <h2 className="text-xl font-semibold mb-4">Your Datasets</h2>
-          {datasets.length === 0 ? (
+          {safeDatasets.length === 0 ? (
             <div className="col-span-full text-center text-muted-foreground py-8">
               No datasets found. Click "Upload Dataset" to add your first
               dataset.
             </div>
           ) : (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {datasets.map((dataset) => (
+              {safeDatasets.map((dataset) => (
                 <Card key={dataset.id} className="flex flex-col">
                   <CardHeader>
                     <div className="flex justify-between items-start">

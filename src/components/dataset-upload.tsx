@@ -9,34 +9,43 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { v4 as uuidv4 } from "uuid";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 export default function DatasetUploadForm() {
   const [accessType, setAccessType] = useState("opensource");
   const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string[][]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    curation: "",
-    price: "0",
-  });
   const router = useRouter();
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setFile(e.target.files[0]);
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      setFile(selectedFile);
+      
+      // Read and preview the file
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const text = event.target?.result as string;
+          const lines = text.split('\n').slice(0, 6); // Get first 6 lines
+          const rows = lines.map(line => line.split(','));
+          setPreview(rows);
+        } catch (error) {
+          console.error('Error parsing file:', error);
+          setError('Error reading file. Please make sure it\'s a valid CSV.');
+        }
+      };
+      reader.readAsText(selectedFile);
     }
-  };
-
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -45,6 +54,16 @@ export default function DatasetUploadForm() {
     setError(null);
 
     try {
+      // Get form element
+      const form = e.currentTarget;
+      
+      // Get form values
+      const title = (form.querySelector('#title') as HTMLInputElement)?.value;
+      const description = (form.querySelector('#description') as HTMLTextAreaElement)?.value;
+      const curation = (form.querySelector('#curation') as HTMLTextAreaElement)?.value;
+      const price = accessType === "paid" ? 
+        Number((form.querySelector('#price') as HTMLInputElement)?.value) : 0;
+
       // Get current user
       const {
         data: { user },
@@ -73,13 +92,13 @@ export default function DatasetUploadForm() {
 
       // 2. Create dataset record
       const { error: dbError } = await supabase.from("datasets").insert({
-        title: formData.title,
-        description: formData.description,
-        curation_notes: formData.curation,
+        title,
+        description,
+        curation_notes: curation,
         file_path: filePath,
         file_size: file.size,
         access_type: accessType,
-        price: accessType === "paid" ? Number(formData.price) : 0,
+        price,
         user_id: user.id,
         file_url: publicUrl,
       });
@@ -104,6 +123,7 @@ export default function DatasetUploadForm() {
           <Label htmlFor="file">Dataset File (CSV)</Label>
           <Input
             id="file"
+            name="file"
             type="file"
             accept=".csv"
             onChange={handleFileChange}
@@ -111,37 +131,45 @@ export default function DatasetUploadForm() {
           />
         </div>
 
+        {preview.length > 0 && (
+          <div className="mt-6 border rounded-lg p-4 bg-background">
+            <h2 className="text-xl font-semibold mb-4">Dataset Preview</h2>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    {preview[0].map((header, index) => (
+                      <TableHead key={index}>{header}</TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {preview.slice(1).map((row, rowIndex) => (
+                    <TableRow key={rowIndex}>
+                      {row.map((cell, cellIndex) => (
+                        <TableCell key={cellIndex}>{cell}</TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        )}
+
         <div>
           <Label htmlFor="title">Dataset Title</Label>
-          <Input
-            id="title"
-            name="title"
-            value={formData.title}
-            onChange={handleInputChange}
-            required
-          />
+          <Input id="title" name="title" required />
         </div>
 
         <div>
           <Label htmlFor="description">Description</Label>
-          <Textarea
-            id="description"
-            name="description"
-            value={formData.description}
-            onChange={handleInputChange}
-            required
-          />
+          <Textarea id="description" name="description" required />
         </div>
 
         <div>
           <Label htmlFor="curation">How it was curated</Label>
-          <Textarea
-            id="curation"
-            name="curation"
-            value={formData.curation}
-            onChange={handleInputChange}
-            required
-          />
+          <Textarea id="curation" name="curation" required />
         </div>
 
         <RadioGroup
@@ -168,8 +196,6 @@ export default function DatasetUploadForm() {
               type="number"
               min="0"
               step="0.01"
-              value={formData.price}
-              onChange={handleInputChange}
               required
             />
           </div>
