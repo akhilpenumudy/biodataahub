@@ -14,6 +14,7 @@ import {
   Settings2,
   Database,
   Globe,
+  Layers3,
   SquareTerminal,
 } from "lucide-react";
 
@@ -54,7 +55,11 @@ const data = {
       url: "/browseProjects",
       icon: Globe,
     },
-
+    {
+      title: "Browse Public Datasets",
+      url: "/browseDataSets",
+      icon: Layers3,
+    },
     {
       title: "Settings",
       url: "#",

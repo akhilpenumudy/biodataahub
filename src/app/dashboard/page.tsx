@@ -17,6 +17,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
   BarChart,
@@ -26,6 +27,7 @@ import {
   Calendar,
   ChevronDown,
   ChevronUp,
+  Tag as TagIcon,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -40,7 +42,7 @@ interface Dataset {
   price: number;
   downloads: number;
   curation_notes: string;
-  user_id: string;
+  tags: string[];
 }
 
 export default function DashboardPage() {
@@ -206,16 +208,22 @@ export default function DashboardPage() {
                           dataset.description || "No description provided",
                       }}
                     />
-                    <div className="space-y-2 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4" />
-                        <span>Uploaded {formatDate(dataset.created_at)}</span>
+                    {dataset.tags && dataset.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-4">
+                        <div className="flex items-center gap-1 text-muted-foreground">
+                          <TagIcon className="h-4 w-4" />
+                        </div>
+                        {dataset.tags.map((tag, index) => (
+                          <Badge
+                            key={index}
+                            variant="secondary"
+                            className="text-xs"
+                          >
+                            {tag}
+                          </Badge>
+                        ))}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4" />
-                        <span>{formatFileSize(dataset.file_size)}</span>
-                      </div>
-                    </div>
+                    )}
                     {expandedId === dataset.id && (
                       <div className="mt-4 space-y-4 border-t pt-4">
                         <div>

@@ -6,9 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { v4 as uuidv4 } from "uuid";
-import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
 import {
   Table,
   TableBody,
@@ -17,7 +14,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { TiptapEditor } from "@/components/tiptap-editor";
+import { v4 as uuidv4 } from "uuid";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import { TiptapEditor } from "./tiptap-editor";
+import { TagInput, Tag } from "emblor";
 
 export default function DatasetUploadForm() {
   const [accessType, setAccessType] = useState("opensource");
@@ -25,8 +26,10 @@ export default function DatasetUploadForm() {
   const [preview, setPreview] = useState<string[][]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
   const [description, setDescription] = useState("");
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [activeTagIndex, setActiveTagIndex] = useState<number | null>(null);
+  const router = useRouter();
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -91,10 +94,10 @@ export default function DatasetUploadForm() {
         data: { publicUrl },
       } = supabase.storage.from("datasets").getPublicUrl(filePath);
 
-      // Create dataset record with HTML description
+      // Create dataset record with tags
       const { error: dbError } = await supabase.from("datasets").insert({
         title,
-        description: description, // Use the state value directly
+        description,
         curation_notes: curation,
         file_path: filePath,
         file_size: file.size,
@@ -102,6 +105,7 @@ export default function DatasetUploadForm() {
         price,
         user_id: user.id,
         file_url: publicUrl,
+        tags: tags.map((tag) => tag.text), // Store just the tag text
       });
 
       if (dbError) throw dbError;
@@ -205,6 +209,21 @@ export default function DatasetUploadForm() {
             />
           </div>
         )}
+
+        <div>
+          <Label>Tags</Label>
+          <TagInput
+            placeholder="Add tags (press enter after each tag)"
+            tags={tags}
+            setTags={setTags}
+            activeTagIndex={activeTagIndex}
+            setActiveTagIndex={setActiveTagIndex}
+            className="w-full"
+          />
+          <p className="text-sm text-muted-foreground mt-1">
+            Add relevant tags to help others find your dataset
+          </p>
+        </div>
 
         {error && (
           <div className="text-red-500 text-sm p-3 bg-red-50 rounded">
