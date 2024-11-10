@@ -63,35 +63,54 @@ export default function BrowseDatasets() {
   useEffect(() => {
     async function fetchDatasets() {
       try {
-        // First get all datasets
-        const { data: datasetsData, error: datasetsError } = await supabase
-          .from("datasets")
-          .select("*")
-          .order("created_at", { ascending: false });
+        // First, check if we can get data
+        const { data: testData, error: testError } = await supabase
+          .from('datasets')
+          .select('*')
+          .limit(1);
 
-        if (datasetsError) {
-          console.error("Datasets error:", datasetsError);
-          throw datasetsError;
+        if (testError) {
+          console.error("Initial test query error:", testError);
+          throw testError;
         }
 
-        // Then get user data for each dataset
-        const processedDatasets = await Promise.all(
-          datasetsData.map(async (dataset) => {
-            const { data: userData } = await supabase
-              .from("auth.users")
-              .select("email, raw_user_meta_data")
-              .eq("id", dataset.user_id)
-              .single();
+        console.log("Test query successful:", testData);
 
-            return {
-              ...dataset,
-              author_name:
-                userData?.raw_user_meta_data?.full_name ||
-                userData?.email?.split("@")[0] ||
-                "Anonymous",
-            };
-          })
-        );
+        // Now fetch all datasets with user data
+        const { data, error } = await supabase
+          .from('datasets')
+          .select(`
+            id,
+            title,
+            description,
+            file_url,
+            created_at,
+            file_size,
+            access_type,
+            price,
+            downloads,
+            tags,
+            user_id,
+            curation_notes
+          `)
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error("Main query error:", {
+            message: error.message,
+            details: error.details,
+            hint: error.hint
+          });
+          throw error;
+        }
+
+        console.log("Raw datasets:", data);
+
+        // Process datasets
+        const processedDatasets = data.map((dataset) => ({
+          ...dataset,
+          downloads: dataset.downloads || 0
+        }));
 
         console.log("Processed datasets:", processedDatasets);
         setDatasets(processedDatasets);
@@ -105,8 +124,13 @@ export default function BrowseDatasets() {
         });
 
         setUniqueTags(Array.from(allTags));
+
       } catch (error) {
-        console.error("Error fetching datasets:", error);
+        console.error("Error fetching datasets:", {
+          error,
+          message: error instanceof Error ? error.message : "Unknown error",
+          stack: error instanceof Error ? error.stack : undefined
+        });
       } finally {
         setLoading(false);
       }
@@ -144,6 +168,30 @@ export default function BrowseDatasets() {
 
   const toggleExpand = (id: string) => {
     setExpandedId(expandedId === id ? null : id);
+  };
+
+  const handleDownload = async (dataset: Dataset) => {
+    try {
+      // Increment download count in the database
+      const { error } = await supabase
+        .from('datasets')
+        .update({ 
+          downloads: (dataset.downloads || 0) + 1 
+        })
+        .eq('id', dataset.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setDatasets(datasets.map(d => 
+        d.id === dataset.id 
+          ? { ...d, downloads: (d.downloads || 0) + 1 }
+          : d
+      ));
+
+    } catch (error) {
+      console.error('Error updating download count:', error);
+    }
   };
 
   if (loading) {
@@ -238,7 +286,7 @@ export default function BrowseDatasets() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Download className="h-4 w-4" />
-                      <span>{dataset.downloads || 0} downloads</span>
+                      <span>{dataset.downloads} downloads</span>
                     </div>
                   </div>
 
@@ -283,13 +331,19 @@ export default function BrowseDatasets() {
                   )}
                 </CardContent>
                 <CardFooter className="flex gap-2">
-                  <Button variant="outline" className="flex-1" asChild>
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => handleDownload(dataset)}
+                    asChild
+                  >
                     <a
                       href={dataset.file_url}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      <Download className="mr-2 h-4 w-4" /> Download
+                      <Download className="mr-2 h-4 w-4" />
+                      Download ({dataset.downloads || 0})
                     </a>
                   </Button>
                   <Button

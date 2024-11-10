@@ -43,6 +43,7 @@ interface Dataset {
   downloads: number;
   curation_notes: string;
   tags: string[];
+  user_id: string;
 }
 
 export default function DashboardPage() {
@@ -71,7 +72,14 @@ export default function DashboardPage() {
           .order("created_at", { ascending: false });
 
         if (error) throw error;
-        setDatasets(data || []);
+
+        // Ensure downloads is a number
+        const processedData = (data || []).map(dataset => ({
+          ...dataset,
+          downloads: dataset.downloads || 0
+        }));
+
+        setDatasets(processedData);
       } catch (error) {
         console.error("Error fetching datasets:", error);
       } finally {
@@ -99,6 +107,38 @@ export default function DashboardPage() {
 
   const toggleExpand = (id: string) => {
     setExpandedId(expandedId === id ? null : id);
+  };
+
+  const handleDownload = async (dataset: Dataset) => {
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+
+      // Don't increment download count if user is the owner
+      if (user?.id === dataset.user_id) {
+        // Just open the download link without incrementing
+        return;
+      }
+
+      // Increment download count in the database
+      const { error } = await supabase
+        .from("datasets")
+        .update({
+          downloads: (dataset.downloads || 0) + 1,
+        })
+        .eq("id", dataset.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setDatasets(
+        datasets.map((d) =>
+          d.id === dataset.id ? { ...d, downloads: (d.downloads || 0) + 1 } : d
+        )
+      );
+    } catch (error) {
+      console.error("Error updating download count:", error);
+    }
   };
 
   if (loading) {
@@ -192,9 +232,9 @@ export default function DashboardPage() {
                           )}
                         </CardDescription>
                       </div>
-                      <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                      <div className="flex items-center gap-2">
                         <Download className="h-4 w-4" />
-                        <span>{dataset.downloads || 0}</span>
+                        <span>{dataset.downloads} downloads</span>
                       </div>
                     </div>
                   </CardHeader>
@@ -254,13 +294,19 @@ export default function DashboardPage() {
                     )}
                   </CardContent>
                   <CardFooter className="flex gap-2">
-                    <Button variant="outline" className="flex-1" asChild>
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => handleDownload(dataset)}
+                      asChild
+                    >
                       <a
                         href={dataset.file_url}
                         target="_blank"
                         rel="noopener noreferrer"
                       >
-                        Download
+                        <Download className="mr-2 h-4 w-4" />
+                        Download ({dataset.downloads || 0})
                       </a>
                     </Button>
                     <Button
